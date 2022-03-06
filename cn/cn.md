@@ -35,11 +35,11 @@ This brief tutorial shows **where some of the most used and quoted sysctl/networ
 
 ![linux network queues](/img/linux_network_flow.png "A graphic representation of linux/kernel network main buffer / queues")
 
-# Fitting the sysctl variables into the Linux network flow
+# 将系统变量拟合到Linux网络流中
 
-## Ingress - they're coming
-1. Packets arrive at the NIC
-1. NIC will verify `MAC` (if not on promiscuous mode) and `FCS` and decide to drop or to continue
+## Ingress - 他们来了
+1. 数据包到达 NIC
+1. NIC会鉴别 `MAC` (if not on promiscuous mode) and `FCS` 来决定丢掉或者继续
 1. NIC will [DMA packets at RAM](https://en.wikipedia.org/wiki/Direct_memory_access), in a region previously prepared (mapped) by the driver
 1. NIC will enqueue references to the packets at receive [ring buffer](https://en.wikipedia.org/wiki/Circular_buffer) queue `rx` until `rx-usecs` timeout or `rx-frames`
 1. NIC will raise a `hard IRQ`
