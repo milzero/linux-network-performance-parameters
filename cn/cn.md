@@ -40,29 +40,29 @@ This brief tutorial shows **where some of the most used and quoted sysctl/networ
 ## Ingress - 他们来了
 1. 数据包到达 NIC
 1. NIC会鉴别 `MAC` (if not on promiscuous mode) and `FCS` 来决定丢掉或者继续
-1. NIC will [DMA packets at RAM](https://en.wikipedia.org/wiki/Direct_memory_access), in a region previously prepared (mapped) by the driver
-1. NIC will enqueue references to the packets at receive [ring buffer](https://en.wikipedia.org/wiki/Circular_buffer) queue `rx` until `rx-usecs` timeout or `rx-frames`
-1. NIC will raise a `hard IRQ`
-1. CPU will run the `IRQ handler` that runs the driver's code
-1. Driver will `schedule a NAPI`, clear the `hard IRQ` and return
-1. Driver raise a `soft IRQ (NET_RX_SOFTIRQ)`
-1. NAPI will poll data from the receive ring buffer until `netdev_budget_usecs` timeout or `netdev_budget` and `dev_weight` packets
-1. Linux will also allocate memory to `sk_buff`
-1. Linux fills the metadata: protocol, interface, setmacheader, removes ethernet
-1. Linux will pass the skb to the kernel stack (`netif_receive_skb`)
-1. It will set the network header, clone `skb` to taps (i.e. tcpdump) and pass it to tc ingress
-1. Packets are handled to a qdisc sized `netdev_max_backlog` with its algorithm defined by `default_qdisc`
-1. It calls `ip_rcv` and packets are handled to IP
-1. It calls netfilter (`PREROUTING`)
-1. It looks at the routing table, if forwarding or local
-1. If it's local it calls netfilter (`LOCAL_IN`)
-1. It calls the L4 protocol (for instance `tcp_v4_rcv`)
-1. It finds the right socket
-1. It goes to the tcp finite state machine
-1. Enqueue the packet to  the receive buffer and sized as `tcp_rmem` rules
-    1. If `tcp_moderate_rcvbuf` is enabled kernel will auto-tune the receive buffer
-1. Kernel will signalize that there is data available to apps (epoll or any polling system)
-1. Application wakes up and reads the data
+1. NIC将由驱动[  RAM中的 DMA数据包 ](https://en.wikipedia.org/wiki/Direct_memory_access),在先前准备的区域 (映射  )
+1. NIC将查询接收处数据包的引用[环形缓冲区](https://en.wikipedia.org/wiki/Circular_buffer)队列“rx”直到“rx-usecs”超时或“rx-frames”。
+1. NIC将触发一个"Hard IRQ "。
+1. CPU将运行驱动程序代码的“IRQ Handler”
+1. 司机将“调度一个NAPI”，清除“硬IRQ”并返回
+1. 驱动触发一个 `soft IRQ (NET_RX_SOFTIRQ)`
+1. NAPI将从接收环缓冲区中轮询数据，直到“netdev _ Budget _ usecs”超时或“netdev _ Budget”和“des _ weight”数据包
+1. Linux会为 `sk_buff`开辟内存
+1. Linux对元数据进行填充：协议、接口、设置MAC header、删除以太网头部
+1. Linux 将skb传递至内核栈 (`netif_receive_skb`)
+1. 将设置网络header，克隆` skb '到抽头(即tcpdump )并将其传递到tc入口
+1. 数据包被处理为qdisc大小的`netdev_max_backlog '，其算法由`default _ qdisc'定义。
+1. 调用 `ip_rcv` ，数据包交给IP层处理
+1. 调用netfilter (`PREROUTING`)
+1. 查询路由表，本地包或转发包
+1. 如果是本地包调用 netfilter (`LOCAL_IN`)
+1. 调用L4协议(例如` tcp_v4_rcv`)
+1. 找到正确的socket
+1. 进入tcp有限状态机
+1. 将数据包按“tcp_rmem”规则插入到接收缓冲区
+1. 如果“tcp _ mid _ rcvbuf”被启用内核将自动调整接收缓冲区
+1. 内核将信号化通知有数据可供应用程序使用(epoll其他poll模型)
+1. 唤醒应用读取数据
 
 ## Egress - they're leaving
 1. Application sends message (`sendmsg` or other)
