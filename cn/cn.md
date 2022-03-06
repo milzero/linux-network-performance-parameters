@@ -65,8 +65,8 @@ This brief tutorial shows **where some of the most used and quoted sysctl/networ
 1. 唤醒应用读取数据
 
 ## Egress - they're leaving
-1. Application sends message (`sendmsg` or other)
-1. TCP send message allocates skb_buff
+1. 应用发送数据 (`sendmsg` 或其他api)
+1. TCP 层开辟 skb_buff 内存
 1. It enqueues skb to the socket write buffer of `tcp_wmem` size
 1. Builds the TCP header (src and dst port, checksum)
 1. Calls L3 handler (in this case `ipv4` on `tcp_write_xmit` and `tcp_transmit_skb`)
@@ -203,13 +203,13 @@ perf trace --no-syscalls --event 'net:*' ping globo.com -c1 > /dev/null
 ![tcp finite state machine](https://upload.wikimedia.org/wikipedia/commons/a/a2/Tcp_state_diagram_fixed.svg "A graphic representation of tcp tcp finite state machine")
 Source: https://commons.wikimedia.org/wiki/File:Tcp_state_diagram_fixed_new.svg
 
-# Network tools for testing and monitoring
+# 用于测试和监控的网络工具
 
-* [iperf3](https://iperf.fr/) - network throughput
-* [vegeta](https://github.com/tsenart/vegeta) - HTTP load testing tool
-* [netdata](https://github.com/firehol/netdata) - system for distributed real-time performance and health monitoring
+* [iperf3](https://iperf.fr/) - 网络吞吐量
+* [vegeta](https://github.com/tsenart/vegeta) - HTTP 压测工具
+* [netdata](https://github.com/firehol/netdata) - 实时分布式系统性能和健康监控
 
-# References
+# 参考文献
 
 * https://www.kernel.org/doc/Documentation/sysctl/net.txt
 * https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt
