@@ -99,12 +99,12 @@ perf trace --no-syscalls --event 'net:*' ping globo.com -c1 > /dev/null
 # What, Why and How - 网络和sysctl参数
 
 ## Ring Buffer - rx,tx
-* **What** - the driver receive/send queue a single or multiple queues with a fixed size, usually implemented as FIFO, it is located at RAM
-* **Why** - buffer to smoothly accept bursts of connections without dropping them, you might need to increase these queues when you see drops or overrun, aka there are more packets coming than the kernel is able to consume them, the side effect might be increased latency.
+* **What** - 驱动程序接收/发送队列包含一个或多个具有固定大小的队列，队列通常在内存中，实现方式是队列。
+* **Why** - 缓冲区作用平滑地接受突发请求，避免丢掉他们，当发现缓冲区调包或溢出，当您看到丢弃或溢出，也就是进来的数据包比内核能够消耗它们多时，您可能需要增加这些队列，这个操作的副作用可能是延迟增加。
 * **How:**
-  * **Check command:** `ethtool -g ethX`
-  * **Change command:** `ethtool -G ethX rx value tx value`
-  * **How to monitor:** `ethtool -S ethX | grep -e "err" -e "drop" -e "over" -e "miss" -e "timeout" -e "reset" -e "restar" -e "collis" -e "over" | grep -v "\: 0"`
+  * **查看:** `ethtool -g ethX`
+  * **修改:** `ethtool -G ethX rx value tx value`
+  * **监控:** `ethtool -S ethX | grep -e "err" -e "drop" -e "over" -e "miss" -e "timeout" -e "reset" -e "restar" -e "collis" -e "over" | grep -v "\: 0"`
  
 ## Interrupt Coalescence (IC) - rx-usecs, tx-usecs, rx-frames, tx-frames (hardware IRQ)
 * **What** - number of microseconds/frames to wait before raising a hardIRQ, from the NIC perspective it'll DMA data packets until this timeout/number of frames
