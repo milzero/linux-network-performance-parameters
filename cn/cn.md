@@ -20,13 +20,8 @@
 
 # 开门见山
 
-Sometimes people are looking for [sysctl](https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt) cargo cult values that bring high throughput and low latency with no trade-off and that works on every occasion. That's not realistic, although we can say that the **newer kernel versions are very well tuned by default**. In fact, you might [hurt performance if you mess with the defaults](https://medium.com/@duhroach/the-bandwidth-delay-problem-c6a2a578b211).
-
-
 有时人们希望在 [sysctl](https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt) 中找到秘籍，这些值可以带来高吞吐量和低延迟，不需权衡取舍，又适用于各种场合。这是不现实的，尽管我们说**较新的内核版本在默认情况下已经调整的很好了**。事实上，你可能会 [如果你乱用默认设置会损害性能](https://medium.com /@duhroach/the-bandwidth-delay-problem-c6a2a578b211)。
-
-This brief tutorial shows **where some of the most used and quoted sysctl/network parameters are located into the Linux network flow**, it was heavily inspired by [the illustrated guide to Linux networking stack](https://blog.packagecloud.io/eng/2016/10/11/monitoring-tuning-linux-networking-stack-receiving-data-illustrated/) and many of [Marek Majkowski's posts](https://blog.cloudflare.com/how-to-achieve-low-latency/). 
-
+ 
 本简短的教程显示* *其中一些使用和引用最多的sysctl / network参数位于Linux网络流中* *，它受到了[  Linux网络栈指南 ] ( https://blog.packagecloud.io/eng/2016/10/11/monitoring-tuning-linux-networking-stack-receiving-data-illustrated/)和许多[ Marek Majkowski's 的帖子] ( https://blog.cloudflare.com/how-to-achieve-low-latency/). )的启发
 
 > #### 有什么问题请尽管提吧 :)
@@ -64,29 +59,29 @@ This brief tutorial shows **where some of the most used and quoted sysctl/networ
 1. 内核将信号化通知有数据可供应用程序使用(epoll其他poll模型)
 1. 唤醒应用读取数据
 
-## Egress - they're leaving
+## Egress - 他们又走了
 1. 应用发送数据 (`sendmsg` 或其他api)
 1. TCP 层开辟 skb_buff 内存
-1. It enqueues skb to the socket write buffer of `tcp_wmem` size
-1. Builds the TCP header (src and dst port, checksum)
-1. Calls L3 handler (in this case `ipv4` on `tcp_write_xmit` and `tcp_transmit_skb`)
-1. L3 (`ip_queue_xmit`) does its work: build ip header and call netfilter (`LOCAL_OUT`)
-1. Calls output route action
-1. Calls netfilter (`POST_ROUTING`)
-1. Fragment the packet (`ip_output`)
-1. Calls L2 send function (`dev_queue_xmit`)
-1. Feeds the output (QDisc) queue of `txqueuelen` length with its algorithm `default_qdisc`
-1. The driver code enqueue the packets at the `ring buffer tx`
-1. The driver will do a `soft IRQ (NET_TX_SOFTIRQ)` after `tx-usecs` timeout or `tx-frames`
-1. Re-enable hard IRQ to NIC
-1. Driver will map all the packets (to be sent) to some DMA'ed region
-1. NIC fetches the packets (via DMA) from RAM to transmit
-1. After the transmission NIC will raise a `hard IRQ` to signal its completion
-1. The driver will handle this IRQ (turn it off)
-1. And schedule (`soft IRQ`) the NAPI poll system 
-1. NAPI will handle the receive packets signaling and free the RAM
+1. 写入socket写入buff， 占用 `tcp_wmem` 大小
+1. 创建TCP头 (src and dst port, checksum)
+1. 调用三层实践 (in this case `ipv4` on `tcp_write_xmit` and `tcp_transmit_skb`)
+1. 三层 (`ip_queue_xmit`) 开始干活: 创建IP头，调用netfilter (`LOCAL_OUT`)
+1. 调用输出路由
+1. 调用 netfilter (`POST_ROUTING`)
+1. 分包 (`ip_output`)
+1. 调用二层函数 (`dev_queue_xmit`)
+1. 填充输出队列，队列长度`txqueuelen`根据`default_qdisc`默认算法计算
+1. 驱动代码将把加入`ring buffer tx`
+1. 在 `tx-usecs` 超时 或 `tx-frames`后，驱动触发一个软中断
+1. 重新启用到 NIC 的硬IRQ
+1. 驱动程序会将所有数据包（要发送）映射到某个 DMA 区域
+1. NIC 从 RAM 中获取数据包（通过 DMA）进行传输
+1. 传输完成后 NIC 将触发一个“hard IRQ”，表示其完成
+1. 驱动处理这次 IRQ，关闭它
+1. 并调度（`soft IRQ`）NAPI 轮询系统
+1. NAPI 将处理接收数据包信号并释放 RAM
 
-## How to check - perf
+## 怎么检查 - perf
 
 If you want to see the network trace within Linux you can use [perf](https://man7.org/linux/man-pages/man1/perf-trace.1.html).
 
