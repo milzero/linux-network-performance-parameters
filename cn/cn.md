@@ -83,20 +83,20 @@
 
 ## 怎么检查 - perf
 
-If you want to see the network trace within Linux you can use [perf](https://man7.org/linux/man-pages/man1/perf-trace.1.html).
+如果你想在 Linux 中查看网络跟踪，你可以使用 [perf](https://man7.org/linux/man-pages/man1/perf-trace.1.html).
 
 ```
 docker run -it --rm --cap-add SYS_ADMIN --entrypoint bash ljishen/perf
 apt-get update
 apt-get install iputils-ping
 
-# this is going to trace all events (not syscalls) to the subsytem net:* while performing the ping
+# 这将在执行 ping 时将所有事件（不是系统调用）跟踪到子系统 net:*
 perf trace --no-syscalls --event 'net:*' ping globo.com -c1 > /dev/null
 ```
 ![perf trace network](https://user-images.githubusercontent.com/55913/147019725-69624e67-b3ca-48b4-a823-10521d2bed83.png)
 
 
-# What, Why and How - network and sysctl parameters
+# What, Why and How - 网络和sysctl参数
 
 ## Ring Buffer - rx,tx
 * **What** - the driver receive/send queue a single or multiple queues with a fixed size, usually implemented as FIFO, it is located at RAM
