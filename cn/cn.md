@@ -106,15 +106,15 @@ perf trace --no-syscalls --event 'net:*' ping globo.com -c1 > /dev/null
   * **修改:** `ethtool -G ethX rx value tx value`
   * **监控:** `ethtool -S ethX | grep -e "err" -e "drop" -e "over" -e "miss" -e "timeout" -e "reset" -e "restar" -e "collis" -e "over" | grep -v "\: 0"`
  
-## Interrupt Coalescence (IC) - rx-usecs, tx-usecs, rx-frames, tx-frames (hardware IRQ)
-* **What** - number of microseconds/frames to wait before raising a hardIRQ, from the NIC perspective it'll DMA data packets until this timeout/number of frames
-* **Why** - reduce CPUs usage, hard IRQ, might increase throughput at cost of latency.
+## 中断合并 (IC) - rx-usecs, tx-usecs, rx-frames, tx-frames (hardware IRQ)
+* **What** - 在提高 hard IRQ之前等待的微秒/帧数，从NIC的角度来看，它将DMA数据包直到超时/凑齐帧数
+* **Why** - 减少 CPU 使用率、hard IRQ 可能会以延迟为代价增加吞吐量。
 * **How:**
-  * **Check command:** `ethtool -c ethX`
-  * **Change command:** `ethtool -C ethX rx-usecs value tx-usecs value`
-  * **How to monitor:** `cat /proc/interrupts` 
+  * **查看:** `ethtool -c ethX`
+  * **修改:** `ethtool -C ethX rx-usecs value tx-usecs value`
+  * **监控:** `cat /proc/interrupts` 
   
-## Interrupt Coalescing (soft IRQ) and Ingress QDisc
+## 中断合并 (soft IRQ) and Ingress QDisc
 * **What** - maximum number of microseconds in one [NAPI](https://en.wikipedia.org/wiki/New_API) polling cycle. Polling will exit when either `netdev_budget_usecs` have elapsed during the poll cycle or the number of packets processed reaches  `netdev_budget`.
 * **Why** - instead of reacting to tons of softIRQ, the driver keeps polling data; keep an eye on `dropped` (# of packets that were dropped because `netdev_max_backlog` was exceeded) and `squeezed` (# of times ksoftirq ran out of `netdev_budget` or time slice with work remaining).
 * **How:**
