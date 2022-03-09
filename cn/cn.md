@@ -115,43 +115,46 @@ perf trace --no-syscalls --event 'net:*' ping globo.com -c1 > /dev/null
   * **监控:** `cat /proc/interrupts` 
   
 ## 中断合并 (soft IRQ) and Ingress QDisc
-* **What** - maximum number of microseconds in one [NAPI](https://en.wikipedia.org/wiki/New_API) polling cycle. Polling will exit when either `netdev_budget_usecs` have elapsed during the poll cycle or the number of packets processed reaches  `netdev_budget`.
-* **Why** - instead of reacting to tons of softIRQ, the driver keeps polling data; keep an eye on `dropped` (# of packets that were dropped because `netdev_max_backlog` was exceeded) and `squeezed` (# of times ksoftirq ran out of `netdev_budget` or time slice with work remaining).
+* **What** - 一个 [NAPI](https://en.wikipedia.org/wiki/New_API) 轮询周期中的最大微秒数。当轮询周期中的`netdev_budget_usecs` 结束或处理的数据包数量达到`netdev_budget`时，轮询将退出。
+* **Why** -驱动程序没有对大量的 soft IRQ 做出反应，而是不断地轮询数据；密切关注 `dropped`（因为超过 `netdev_max_backlog` 而被丢弃的数据包数）和 `squeezed`（ksoftirq 用完 `netdev_budget` 的次数或剩余工作的时间片）。
 * **How:**
-  * **Check command:** `sysctl net.core.netdev_budget_usecs`
-  * **Change command:** `sysctl -w net.core.netdev_budget_usecs value`
-  * **How to monitor:** `cat /proc/net/softnet_stat`; or a [better tool](https://raw.githubusercontent.com/majek/dump/master/how-to-receive-a-packet/softnet.sh)
-* **What** - `netdev_budget` is the maximum number of packets taken from all interfaces in one polling cycle (NAPI poll). In one polling cycle interfaces which are registered to polling are probed in a round-robin manner. Also, a polling cycle may not exceed `netdev_budget_usecs` microseconds, even if `netdev_budget` has not been exhausted.
+  * **查看:** `sysctl net.core.netdev_budget_usecs`
+  * **修改:** `sysctl -w net.core.netdev_budget_usecs value`
+  * **监控:** `cat /proc/net/softnet_stat`; 或 [better tool](https://raw.githubusercontent.com/majek/dump/master/how-to-receive-a-packet/softnet.sh)
+
+* **What** -* `netdev_budget` 是在一个轮询周期（NAPI 轮询）中从所有网卡获取的最大数据包数。在一个轮询周期内，注册到轮询的接口以循环方式进行探测。此外，轮询周期不得超过 `netdev_budget_usecs` 微秒，即使 `netdev_budget` 尚未用尽。
 * **How:**
   * **Check command:** `sysctl net.core.netdev_budget`
   * **Change command:** `sysctl -w net.core.netdev_budget value`
-  * **How to monitor:** `cat /proc/net/softnet_stat`; or a [better tool](https://raw.githubusercontent.com/majek/dump/master/how-to-receive-a-packet/softnet.sh)
-* **What** - `dev_weight` is the maximum number of packets that kernel can handle on a NAPI interrupt, it's a Per-CPU variable. For drivers that support LRO or GRO_HW, a hardware aggregated packet is counted as one packet in this.
+  * **How to monitor:** `cat /proc/net/softnet_stat`; 或 [better tool](https://raw.githubusercontent.com/majek/dump/master/how-to-receive-a-packet/softnet.sh)
+
+* **What** -`dev_weight` 是内核在 NAPI 中断上可以处理的最大数据包数，它是一个 Per-CPU 变量。对于支持 LRO 或 GRO_HW 的驱动程序，硬件聚合数据包在此计为一个数据包。
 * **How:**
   * **Check command:** `sysctl net.core.dev_weight`
   * **Change command:** `sysctl -w net.core.dev_weight value`
-  * **How to monitor:** `cat /proc/net/softnet_stat`; or a [better tool](https://raw.githubusercontent.com/majek/dump/master/how-to-receive-a-packet/softnet.sh)
-* **What** - `netdev_max_backlog` is the maximum number  of  packets,  queued  on  the  INPUT side (_the ingress qdisc_), when the interface receives packets faster than kernel can process them.
+  * **How to monitor:** `cat /proc/net/softnet_stat`; 或 [better tool](https://raw.githubusercontent.com/majek/dump/master/how-to-receive-a-packet/softnet.sh)
+
+* **What** - `netdev_max_backlog` 是当接口接收数据包的速度超过内核处理它们的速度时 ，在输入端排队的最大数据包数（_the ingress qdisc_），
 * **How:**
   * **Check command:** `sysctl net.core.netdev_max_backlog`
   * **Change command:** `sysctl -w net.core.netdev_max_backlog value`
-  * **How to monitor:** `cat /proc/net/softnet_stat`; or a [better tool](https://raw.githubusercontent.com/majek/dump/master/how-to-receive-a-packet/softnet.sh)
+  * **How to monitor:** `cat /proc/net/softnet_stat`; 或 [better tool](https://raw.githubusercontent.com/majek/dump/master/how-to-receive-a-packet/softnet.sh)
   
 ## Egress QDisc - txqueuelen and default_qdisc
-* **What** - `txqueuelen` is the maximum number of packets, queued on the OUTPUT side.
-* **Why** - a buffer/queue to face connection burst and also to apply [tc (traffic control).](http://tldp.org/HOWTO/Traffic-Control-HOWTO/intro.html)
+* **What** - `txqueuelen` 是在 输出 端排队的最大数据包数。
+* **Why** - 同样适用于一个缓冲区/队列的突发连接 [tc (traffic control).](http://tldp.org/HOWTO/Traffic-Control-HOWTO/intro.html)
 * **How:**
   * **Check command:** `ifconfig ethX`
   * **Change command:** `ifconfig ethX txqueuelen value`
   * **How to monitor:** `ip -s link` 
-* **What** - `default_qdisc` is the default queuing discipline to use for network devices.
-* **Why** - each application has different load and need to traffic control and it is used also to fight against [bufferbloat](https://www.bufferbloat.net/projects/codel/wiki/)
+* **What** - `default_qdisc` 是网络设备的默认排队规则。
+* **Why** - 每个应用程序都有不同的负载和流量控制方法，它也用于对抗 [bufferbloat](https://www.bufferbloat.net/projects/codel/wiki/)
 * **How:**
   * **Check command:** `sysctl net.core.default_qdisc`
   * **Change command:** `sysctl -w net.core.default_qdisc value`
   * **How to monitor:**   `tc -s qdisc ls dev ethX`
 
-## TCP Read and Write Buffers/Queues
+## TCP 读写缓冲区/队列
 
 > The policy that defines what is [memory pressure](https://wwwx.cs.unc.edu/~sparkst/howto/network_tuning.php) is specified at tcp_mem and tcp_moderate_rcvbuf.
 
