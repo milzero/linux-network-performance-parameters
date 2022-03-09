@@ -177,30 +177,30 @@ perf trace --no-syscalls --event 'net:*' ping globo.com -c1 > /dev/null
   * **修改:** `sysctl -w net.ipv4.tcp_moderate_rcvbuf value`
   * **监控:** `cat /proc/net/sockstat`
 
-## Honorable mentions - TCP FSM and congestion algorithm
+## 进阶 - TCP FSM 和拥塞算法
 
-> Accept and SYN Queues are governed by net.core.somaxconn and net.ipv4.tcp_max_syn_backlog. [Nowadays net.core.somaxconn caps both queue sizes.](https://blog.cloudflare.com/syn-packet-handling-in-the-wild/#queuesizelimits)
+> Accept 和 SYN 队列由 net.core.somaxconn 和 net.ipv4.tcp_max_syn_backlog 管理。[Nowadays net.core.somaxconn caps both queue sizes.](https://blog.cloudflare.com/syn-packet-handling-in-the-wild/#queuesizelimits)
 
-* `sysctl net.core.somaxconn` - provides an upper limit on the value of the backlog parameter passed to the [`listen()` function](https://eklitzke.org/how-tcp-sockets-work), known in userspace as `SOMAXCONN`. If you change this value, you should also change your application to a compatible value (i.e. [nginx backlog](http://nginx.org/en/docs/http/ngx_http_core_module.html#listen)).
-* `cat /proc/sys/net/ipv4/tcp_fin_timeout` - this specifies the number of seconds to wait for a final FIN packet before the socket is forcibly closed.  This is strictly a violation of the TCP specification but required to prevent denial-of-service attacks.
-* `cat /proc/sys/net/ipv4/tcp_available_congestion_control` - shows the available congestion control choices that are registered.
-* `cat /proc/sys/net/ipv4/tcp_congestion_control` - sets the congestion control algorithm to be used for new connections.
-* `cat /proc/sys/net/ipv4/tcp_max_syn_backlog` - sets the maximum number of queued connection requests which have still not received an acknowledgment from the connecting client; if this number is exceeded, the kernel will begin dropping requests.
-* `cat /proc/sys/net/ipv4/tcp_syncookies` - enables/disables [syn cookies](https://en.wikipedia.org/wiki/SYN_cookies), useful for protecting against [syn flood attacks](https://www.cloudflare.com/learning/ddos/syn-flood-ddos-attack/).
-* `cat /proc/sys/net/ipv4/tcp_slow_start_after_idle` - enables/disables tcp slow start.
+* `sysctl net.core.somaxconn` - 传递 backlog 参数值上限[`listen()` function](https://eklitzke.org/how-tcp-sockets-work), 在用户空间中称为“SOMAXCONN”。 如果您更改此值，您还应该将您的应用程序更改为兼容的值(i.e. [nginx backlog](http://nginx.org/en/docs/http/ngx_http_core_module.html#listen)).
+* `cat /proc/sys/net/ipv4/tcp_fin_timeout` - 在套接字被强制关闭之前等待最终 FIN 数据包的秒数。 这严重违反了 TCP 规范，这个操作会让服务保留拒绝服务攻击中。
+* `cat /proc/sys/net/ipv4/tcp_available_congestion_control` - 显示已注册可用拥塞控制选项。
+* `cat /proc/sys/net/ipv4/tcp_congestion_control` -设置用于新的拥塞控制算法。
+* `cat /proc/sys/net/ipv4/tcp_max_syn_backlog` -设置尚链接确认请求，排队连接请求的最大数； 如果超过这个数，内核将开始决绝请求。
+* `cat /proc/sys/net/ipv4/tcp_syncookies` - 启用/关闭 [syn cookies](https://en.wikipedia.org/wiki/SYN_cookies), 可用于免受攻击 [syn flood attacks](https://www.cloudflare.com/learning/ddos/syn-flood-ddos-attack/).
+* `cat /proc/sys/net/ipv4/tcp_slow_start_after_idle` -启用/关闭 tcp 慢启动.
 
 **监控:** 
-* `netstat -atn | awk '/tcp/ {print $6}' | sort | uniq -c` - summary by state
-* `ss -neopt state time-wait | wc -l` - counters by a specific state: `established`, `syn-sent`, `syn-recv`, `fin-wait-1`, `fin-wait-2`, `time-wait`, `closed`, `close-wait`, `last-ack`, `listening`, `closing`
-* `netstat -st` - tcp stats summary
-* `nstat -a` - human-friendly tcp stats summary
-* `cat /proc/net/sockstat` - summarized socket stats
-* `cat /proc/net/tcp` - detailed stats, see each field meaning at the [kernel docs](https://www.kernel.org/doc/Documentation/networking/proc_net_tcp.txt)
-* `cat /proc/net/netstat` - `ListenOverflows` and `ListenDrops` are important fields to keep an eye on
+* `netstat -atn | awk '/tcp/ {print $6}' | sort | uniq -c` - 统计状态
+* `ss -neopt state time-wait | wc -l` - 统计指定状态的连接数: `established`, `syn-sent`, `syn-recv`, `fin-wait-1`, `fin-wait-2`, `time-wait`, `closed`, `close-wait`, `last-ack`, `listening`, `closing`
+* `netstat -st` - tcp 统计状态
+* `nstat -a` - 人性化 tcp 统计状态
+* `cat /proc/net/sockstat` - socket 统计状态
+* `cat /proc/net/tcp` - 详细的统计信息，请参阅每个字段的含义 [kernel docs](https://www.kernel.org/doc/Documentation/networking/proc_net_tcp.txt)
+* `cat /proc/net/netstat` - `ListenOverflows` 和 `ListenDrops` 是值得关注
   * `cat /proc/net/netstat | awk '(f==0) { i=1; while ( i<=NF) {n[i] = $i; i++ }; f=1; next} \
-(f==1){ i=2; while ( i<=NF){ printf "%s = %d\n", n[i], $i; i++}; f=0} ' | grep -v "= 0`; a [human readable `/proc/net/netstat`](https://sa-chernomor.livejournal.com/9858.html)
+(f==1){ i=2; while ( i<=NF){ printf "%s = %d\n", n[i], $i; i++}; f=0} ' | grep -v "= 0`;  [肉眼可读] `/proc/net/netstat`](https://sa-chernomor.livejournal.com/9858.html)
 
-![tcp finite state machine](https://upload.wikimedia.org/wikipedia/commons/a/a2/Tcp_state_diagram_fixed.svg "A graphic representation of tcp tcp finite state machine")
+![tcp finite state machine](https://upload.wikimedia.org/wikipedia/commons/a/a2/Tcp_state_diagram_fixed.svg "图形化的 tcp 状态机")
 Source: https://commons.wikimedia.org/wiki/File:Tcp_state_diagram_fixed_new.svg
 
 # 用于测试和监控的网络工具
