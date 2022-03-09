@@ -124,56 +124,58 @@ perf trace --no-syscalls --event 'net:*' ping globo.com -c1 > /dev/null
 
 * **What** -* `netdev_budget` 是在一个轮询周期（NAPI 轮询）中从所有网卡获取的最大数据包数。在一个轮询周期内，注册到轮询的接口以循环方式进行探测。此外，轮询周期不得超过 `netdev_budget_usecs` 微秒，即使 `netdev_budget` 尚未用尽。
 * **How:**
-  * **Check command:** `sysctl net.core.netdev_budget`
-  * **Change command:** `sysctl -w net.core.netdev_budget value`
-  * **How to monitor:** `cat /proc/net/softnet_stat`; 或 [better tool](https://raw.githubusercontent.com/majek/dump/master/how-to-receive-a-packet/softnet.sh)
+  * **查看:** `sysctl net.core.netdev_budget`
+  * **修改:** `sysctl -w net.core.netdev_budget value`
+  * **监控:** `cat /proc/net/softnet_stat`; 或 [better tool](https://raw.githubusercontent.com/majek/dump/master/how-to-receive-a-packet/softnet.sh)
 
 * **What** -`dev_weight` 是内核在 NAPI 中断上可以处理的最大数据包数，它是一个 Per-CPU 变量。对于支持 LRO 或 GRO_HW 的驱动程序，硬件聚合数据包在此计为一个数据包。
 * **How:**
-  * **Check command:** `sysctl net.core.dev_weight`
-  * **Change command:** `sysctl -w net.core.dev_weight value`
-  * **How to monitor:** `cat /proc/net/softnet_stat`; 或 [better tool](https://raw.githubusercontent.com/majek/dump/master/how-to-receive-a-packet/softnet.sh)
+  * **查看:** `sysctl net.core.dev_weight`
+  * **修改:** `sysctl -w net.core.dev_weight value`
+  * **监控:** `cat /proc/net/softnet_stat`; 或 [better tool](https://raw.githubusercontent.com/majek/dump/master/how-to-receive-a-packet/softnet.sh)
 
 * **What** - `netdev_max_backlog` 是当接口接收数据包的速度超过内核处理它们的速度时 ，在输入端排队的最大数据包数（_the ingress qdisc_），
 * **How:**
-  * **Check command:** `sysctl net.core.netdev_max_backlog`
-  * **Change command:** `sysctl -w net.core.netdev_max_backlog value`
-  * **How to monitor:** `cat /proc/net/softnet_stat`; 或 [better tool](https://raw.githubusercontent.com/majek/dump/master/how-to-receive-a-packet/softnet.sh)
+  * **查看:** `sysctl net.core.netdev_max_backlog`
+  * **修改:** `sysctl -w net.core.netdev_max_backlog value`
+  * **监控:** `cat /proc/net/softnet_stat`; 或 [better tool](https://raw.githubusercontent.com/majek/dump/master/how-to-receive-a-packet/softnet.sh)
   
 ## Egress QDisc - txqueuelen and default_qdisc
 * **What** - `txqueuelen` 是在 输出 端排队的最大数据包数。
 * **Why** - 同样适用于一个缓冲区/队列的突发连接 [tc (traffic control).](http://tldp.org/HOWTO/Traffic-Control-HOWTO/intro.html)
 * **How:**
-  * **Check command:** `ifconfig ethX`
-  * **Change command:** `ifconfig ethX txqueuelen value`
-  * **How to monitor:** `ip -s link` 
+  * **查看:** `ifconfig ethX`
+  * **修改:** `ifconfig ethX txqueuelen value`
+  * **监控:** `ip -s link` 
 * **What** - `default_qdisc` 是网络设备的默认排队规则。
 * **Why** - 每个应用程序都有不同的负载和流量控制方法，它也用于对抗 [bufferbloat](https://www.bufferbloat.net/projects/codel/wiki/)
 * **How:**
-  * **Check command:** `sysctl net.core.default_qdisc`
-  * **Change command:** `sysctl -w net.core.default_qdisc value`
-  * **How to monitor:**   `tc -s qdisc ls dev ethX`
+  * **查看:** `sysctl net.core.default_qdisc`
+  * **修改:** `sysctl -w net.core.default_qdisc value`
+  * **监控:** `tc -s qdisc ls dev ethX`
 
 ## TCP 读写缓冲区/队列
 
-> The policy that defines what is [memory pressure](https://wwwx.cs.unc.edu/~sparkst/howto/network_tuning.php) is specified at tcp_mem and tcp_moderate_rcvbuf.
+> 定义什么是 [内存压力](https://wwwx.cs.unc.edu/~sparkst/howto/network_tuning.php) 的策略在 tcp_mem 和 tcp_moderate_rcvbuf 中指定。
 
-* **What** - `tcp_rmem` - min (size used under memory pressure), default (initial size), max (maximum size) - size of receive buffer used by TCP sockets.
-* **Why** - the application buffer/queue to the write/send data, [understand its consequences can help a lot](https://blog.cloudflare.com/the-story-of-one-latency-spike/).
+* **What** - `tcp_rmem` - min (压力下的最小值), default (初始值), max (最大值) - TCP用于接受数据的buffer大小。
+* **Why** - 应用程序写入数据的buffer大小, [understand its consequences can help a lot](https://blog.cloudflare.com/the-story-of-one-latency-spike/).
 * **How:**
-  * **Check command:** `sysctl net.ipv4.tcp_rmem`
-  * **Change command:** `sysctl -w net.ipv4.tcp_rmem="min default max"`; when changing default value, remember to restart your user space app (i.e. your web server, nginx, etc)
-  * **How to monitor:** `cat /proc/net/sockstat`
-* **What** - `tcp_wmem` - min (size used under memory pressure), default (initial size), max (maximum size) - size of send buffer used by TCP sockets.
+  * **查看:** `sysctl net.ipv4.tcp_rmem`
+  * **修改:** `sysctl -w net.ipv4.tcp_rmem="min default max"`; when changing default value, remember to restart your user space app (i.e. your web server, nginx, etc)
+  * **监控:** `cat /proc/net/sockstat`
+
+* **What** - `tcp_wmem` - min (内存压力小的最小值), default (初始值), max 最大值) -TCP用于发送数据的buffer大小。
 * **How:**
-  * **Check command:** `sysctl net.ipv4.tcp_wmem`
-  * **Change command:** `sysctl -w net.ipv4.tcp_wmem="min default max"`; when changing default value, remember to restart your user space app (i.e. your web server, nginx, etc)
-  * **How to monitor:** `cat /proc/net/sockstat`
-* **What** `tcp_moderate_rcvbuf` - If set, TCP performs receive buffer auto-tuning, attempting to automatically size the buffer.
+  * **查看:** `sysctl net.ipv4.tcp_wmem`
+  * **修改:** `sysctl -w net.ipv4.tcp_wmem="min default max"`; when changing default value, remember to restart your user space app (i.e. your web server, nginx, etc)
+  * **监控:** `cat /proc/net/sockstat`
+
+* **What** `tcp_moderate_rcvbuf` - 如果设置，TCP 尝试自行调整接收缓冲区大小。
 * **How:**
-  * **Check command:** `sysctl net.ipv4.tcp_moderate_rcvbuf`
-  * **Change command:** `sysctl -w net.ipv4.tcp_moderate_rcvbuf value`
-  * **How to monitor:** `cat /proc/net/sockstat`
+  * **查看:** `sysctl net.ipv4.tcp_moderate_rcvbuf`
+  * **修改:** `sysctl -w net.ipv4.tcp_moderate_rcvbuf value`
+  * **监控:** `cat /proc/net/sockstat`
 
 ## Honorable mentions - TCP FSM and congestion algorithm
 
@@ -187,7 +189,7 @@ perf trace --no-syscalls --event 'net:*' ping globo.com -c1 > /dev/null
 * `cat /proc/sys/net/ipv4/tcp_syncookies` - enables/disables [syn cookies](https://en.wikipedia.org/wiki/SYN_cookies), useful for protecting against [syn flood attacks](https://www.cloudflare.com/learning/ddos/syn-flood-ddos-attack/).
 * `cat /proc/sys/net/ipv4/tcp_slow_start_after_idle` - enables/disables tcp slow start.
 
-**How to monitor:** 
+**监控:** 
 * `netstat -atn | awk '/tcp/ {print $6}' | sort | uniq -c` - summary by state
 * `ss -neopt state time-wait | wc -l` - counters by a specific state: `established`, `syn-sent`, `syn-recv`, `fin-wait-1`, `fin-wait-2`, `time-wait`, `closed`, `close-wait`, `last-ack`, `listening`, `closing`
 * `netstat -st` - tcp stats summary
