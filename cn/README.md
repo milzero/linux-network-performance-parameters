@@ -20,9 +20,9 @@
 
 # 开门见山
 
-有时人们希望在 [sysctl](https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt) 中找到秘籍，这些值可以带来高吞吐量和低延迟，不需权衡取舍，又适用于各种场合。这是不现实的，尽管我们说**较新的内核版本在默认情况下已经调整的很好了**。事实上，你可能会 [如果你乱用默认设置会损害性能](https://medium.com /@duhroach/the-bandwidth-delay-problem-c6a2a578b211)。
+我们有时希望在 [sysctl](https://www.kernel.org/doc/Documentation/networking/ip-sysctl.txt) 中找到秘籍: 无需在各种场景下做出取舍，仅修改这些值可以提高吞吐量和降低低延迟。这是不现实的，**较新的内核版本在默认情况下已经调整的很好了**。事实上，反而可能会 [如果你乱用默认设置]会损害性能(https://medium.com /@duhroach/the-bandwidth-delay-problem-c6a2a578b211)。
  
-本简短的教程显示* *其中一些使用和引用最多的sysctl / network参数位于Linux网络流中* *，它受到了[  Linux网络栈指南 ] ( https://blog.packagecloud.io/eng/2016/10/11/monitoring-tuning-linux-networking-stack-receiving-data-illustrated/)和许多[ Marek Majkowski's 的帖子] ( https://blog.cloudflare.com/how-to-achieve-low-latency/). )的启发
+这个简短的教程展示**sysctl/network在网络流中的作用**，它受到了[Linux网络栈指南](https://blog.packagecloud.io/eng/2016/10/11/monitoring-tuning-linux-networking-stack-receiving-data-illustrated/)和[ Marek Majkowski's 的帖子](https://blog.cloudflare.com/how-to-achieve-low-latency/).)的许多启发
 
 > #### 有什么问题请尽管提吧 :)
 
@@ -32,39 +32,39 @@
 
 # 将系统变量拟合到Linux网络流中
 
-## Ingress - 他们来了
+## 入口 - 他们来了
 1. 数据包到达 NIC
-1. NIC会鉴别 `MAC` (if not on promiscuous mode) and `FCS` 来决定丢掉或者继续
-1. NIC将由驱动[  RAM中的 DMA数据包 ](https://en.wikipedia.org/wiki/Direct_memory_access),在先前准备的区域 (映射  )
-1. NIC将查询接收处数据包的引用[环形缓冲区](https://en.wikipedia.org/wiki/Circular_buffer)队列“rx”直到“rx-usecs”超时或“rx-frames”。
-1. NIC将触发一个"Hard IRQ "。
-1. CPU将运行驱动程序代码的“IRQ Handler”
-1. 司机将“调度一个NAPI”，清除“硬IRQ”并返回
-1. 驱动触发一个 `soft IRQ (NET_RX_SOFTIRQ)`
-1. NAPI将从接收环缓冲区中轮询数据，直到“netdev _ Budget _ usecs”超时或“netdev _ Budget”和“des _ weight”数据包
+1. NIC校验 `MAC`(非混杂模式)和`FCS`,决定丢掉这个包或者继续处理
+1. NIC由驱动[RAM中的DMA数据包](https://en.wikipedia.org/wiki/Direct_memory_access), 映射到一个事先开辟的内存区域
+1. NIC查询接收处数据包的引用[环形缓冲区](https://en.wikipedia.org/wiki/Circular_buffer)队列“rx”直到“rx-usecs”超时或“rx-frames”。
+1. NIC触发硬中断。
+1. CPU运行驱动程序代码的“IRQ Handler”
+1. 驱动“调度一个NAPI”，清除“硬中断”并返回
+1. 驱动触发一个 `软中断(NET_RX_SOFTIRQ)`
+1. NAPI从接收环缓冲区中轮询数据，直到“netdev_Budget_usecs”超时或“netdev_Budget”和“des_ weight”数据包
 1. Linux会为 `sk_buff`开辟内存
-1. Linux对元数据进行填充：协议、接口、设置MAC header、删除以太网头部
+1. Linux对元数据进行填充：协议、接口、设置MAC header，并删除以太网头部
 1. Linux 将skb传递至内核栈 (`netif_receive_skb`)
-1. 将设置网络header，克隆` skb '到抽头(即tcpdump )并将其传递到tc入口
+1. 将设置网络header，克隆`skb'到抽头(即tcpdump )并将其传递到tc入口
 1. 数据包被处理为qdisc大小的`netdev_max_backlog '，其算法由`default _ qdisc'定义。
 1. 调用 `ip_rcv` ，数据包交给IP层处理
 1. 调用netfilter (`PREROUTING`)
 1. 查询路由表，本地包或转发包
 1. 如果是本地包调用 netfilter (`LOCAL_IN`)
-1. 调用L4协议(例如` tcp_v4_rcv`)
+1. 调用L4协议(例如`tcp_v4_rcv`)
 1. 找到正确的socket
 1. 进入tcp有限状态机
 1. 将数据包按“tcp_rmem”规则插入到接收缓冲区
-1. 如果“tcp _ mid _ rcvbuf”被启用内核将自动调整接收缓冲区
-1. 内核将信号化通知有数据可供应用程序使用(epoll其他poll模型)
+1. 如果“tcp_mid_rcvbuf”被启用内核将自动调整接收缓冲区
+1. 内核使用信号通知有数据可供应用程序读取(epoll其他poll模型)
 1. 唤醒应用读取数据
 
 ## Egress - 他们又走了
 1. 应用发送数据 (`sendmsg` 或其他api)
 1. TCP 层开辟 skb_buff 内存
-1. 写入socket写入buff， 占用 `tcp_wmem` 大小
+1. 写入socket `write buff`(占用 `tcp_wmem` 大小)
 1. 创建TCP头 (src and dst port, checksum)
-1. 调用三层实践 (in this case `ipv4` on `tcp_write_xmit` and `tcp_transmit_skb`)
+1. 调用三层实现 (in this case `ipv4` on `tcp_write_xmit` and `tcp_transmit_skb`)
 1. 三层 (`ip_queue_xmit`) 开始干活: 创建IP头，调用netfilter (`LOCAL_OUT`)
 1. 调用输出路由
 1. 调用 netfilter (`POST_ROUTING`)
@@ -99,30 +99,30 @@ perf trace --no-syscalls --event 'net:*' ping globo.com -c1 > /dev/null
 # What, Why and How - 网络和sysctl参数
 
 ## Ring Buffer - rx,tx
-* **What** - 驱动程序接收/发送队列包含一个或多个具有固定大小的队列，队列通常在内存中，实现方式是队列。
+* **What** - 驱动程序接收/发送队列包含一个或多个具有固定大小的列表，队列通常在内存中，实现方式是队列。
 * **Why** - 缓冲区作用平滑地接受突发请求，避免丢掉他们，当发现缓冲区调包或溢出，当您看到丢弃或溢出，也就是进来的数据包比内核能够消耗它们多时，您可能需要增加这些队列，这个操作的副作用可能是延迟增加。
 * **How:**
-  * **查看:** `ethtool -g ethX`
-  * **修改:** `ethtool -G ethX rx value tx value`
-  * **监控:** `ethtool -S ethX | grep -e "err" -e "drop" -e "over" -e "miss" -e "timeout" -e "reset" -e "restar" -e "collis" -e "over" | grep -v "\: 0"`
+  * **查看:** `ethtool -g eth0`
+  * **修改:** `ethtool -G eth0 rx value tx value`
+  * **监控:** `ethtool -S eth0 | grep -e "err" -e "drop" -e "over" -e "miss" -e "timeout" -e "reset" -e "restar" -e "collis" -e "over" | grep -v "\: 0"`
  
 ## 中断合并 (IC) - rx-usecs, tx-usecs, rx-frames, tx-frames (hardware IRQ)
 * **What** - 在提高 hard IRQ之前等待的微秒/帧数，从NIC的角度来看，它将DMA数据包直到超时/凑齐帧数
 * **Why** - 减少 CPU 使用率、hard IRQ 可能会以延迟为代价增加吞吐量。
 * **How:**
-  * **查看:** `ethtool -c ethX`
-  * **修改:** `ethtool -C ethX rx-usecs value tx-usecs value`
+  * **查看:** `ethtool -c eth0`
+  * **修改:** `ethtool -C eth0 rx-usecs value tx-usecs value`
   * **监控:** `cat /proc/interrupts` 
   
 ## 中断合并 (soft IRQ) and Ingress QDisc
 * **What** - 一个 [NAPI](https://en.wikipedia.org/wiki/New_API) 轮询周期中的最大微秒数。当轮询周期中的`netdev_budget_usecs` 结束或处理的数据包数量达到`netdev_budget`时，轮询将退出。
-* **Why** -驱动程序没有对大量的 soft IRQ 做出反应，而是不断地轮询数据；密切关注 `dropped`（因为超过 `netdev_max_backlog` 而被丢弃的数据包数）和 `squeezed`（ksoftirq 用完 `netdev_budget` 的次数或剩余工作的时间片）。
+* **Why** -驱动程序没有对大量的 soft IRQ 做出反应，而是不断地轮询数据；重点关注 `dropped`（因为超过 `netdev_max_backlog` 而被丢弃的数据包数）和 `squeezed`（ksoftirq 用完 `netdev_budget` 的次数或剩余工作的时间片）。
 * **How:**
   * **查看:** `sysctl net.core.netdev_budget_usecs`
   * **修改:** `sysctl -w net.core.netdev_budget_usecs value`
   * **监控:** `cat /proc/net/softnet_stat`; 或 [better tool](https://raw.githubusercontent.com/majek/dump/master/how-to-receive-a-packet/softnet.sh)
 
-* **What** -* `netdev_budget` 是在一个轮询周期（NAPI 轮询）中从所有网卡获取的最大数据包数。在一个轮询周期内，注册到轮询的接口以循环方式进行探测。此外，轮询周期不得超过 `netdev_budget_usecs` 微秒，即使 `netdev_budget` 尚未用尽。
+* **What** -* `netdev_budget` 是轮询周期（NAPI 轮询）中从所有网卡获取的最大数据包数。轮询周期内，注册到轮询的接口以循环方式进行探测。此外，轮询周期不得超过 `netdev_budget_usecs` ，即使 `netdev_budget` 尚未用尽。
 * **How:**
   * **查看:** `sysctl net.core.netdev_budget`
   * **修改:** `sysctl -w net.core.netdev_budget value`
@@ -144,15 +144,15 @@ perf trace --no-syscalls --event 'net:*' ping globo.com -c1 > /dev/null
 * **What** - `txqueuelen` 是在 输出 端排队的最大数据包数。
 * **Why** - 同样适用于一个缓冲区/队列的突发连接 [tc (traffic control).](http://tldp.org/HOWTO/Traffic-Control-HOWTO/intro.html)
 * **How:**
-  * **查看:** `ifconfig ethX`
-  * **修改:** `ifconfig ethX txqueuelen value`
+  * **查看:** `ifconfig eth0`
+  * **修改:** `ifconfig eth0 txqueuelen value`
   * **监控:** `ip -s link` 
 * **What** - `default_qdisc` 是网络设备的默认排队规则。
 * **Why** - 每个应用程序都有不同的负载和流量控制方法，它也用于对抗 [bufferbloat](https://www.bufferbloat.net/projects/codel/wiki/)
 * **How:**
   * **查看:** `sysctl net.core.default_qdisc`
   * **修改:** `sysctl -w net.core.default_qdisc value`
-  * **监控:** `tc -s qdisc ls dev ethX`
+  * **监控:** `tc -s qdisc ls dev eth0`
 
 ## TCP 读写缓冲区/队列
 
